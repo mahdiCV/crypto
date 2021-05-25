@@ -7,7 +7,14 @@ class Binance:
     def __init__(self):
         self.order_book = {}
         self.u = 0
+        self.deposit = 0
+        self.buy_price = 0
+        self.sell_price = 0
+        self.maker_commission = .1 / 100
+        self.taker_commission = .1 / 100
+
         self.stream()
+
 
     def get_snapshot(self):
         proxy = {
@@ -66,6 +73,15 @@ class Binance:
                 "id": 1
             }
             ws.send(json.dumps(subscribe))
+            # make buy price
+            bid = self.order_book['bids'][0][0]
+            buy_price = .99 * bid * (1 - self.maker_commission)
+            self.buy_price = round(buy_price, 2)
+            # make sell price
+            ask = self.order_book['asks'][0][[0]]
+            sell_price = 1.01 * ask * (1 + self.maker_commission)
+            self.sell_price = round(sell_price, 2)
+
 
         def on_close(ws):
             print("connecton closed")
