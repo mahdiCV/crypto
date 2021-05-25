@@ -138,6 +138,8 @@ class Binance:
 
 
 
+
+
 b = Binance()
 # b.order_book = b.get_snapshot()
 # print(b.order_book)
