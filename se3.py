@@ -2,17 +2,22 @@ import websocket
 import json
 import requests
 import threading
+from datetime import datetime
+
 
 class Binance:
     def __init__(self):
         self.order_book = {}
+        self.log_file = "log.txt"
         self.u = 0
         self.deposit = 0
         self.buy_price = 0
         self.sell_price = 0
-        self.maker_commission = .1 / 100
-        self.taker_commission = .1 / 100
-
+        self.maker_commission = 0.1 / 100
+        self.taker_commission = 0.1 / 100
+        self.volatility = .1/100
+        with open(self.log_file, "w") as f:
+            f.write("")
         self.stream()
 
 
@@ -38,10 +43,27 @@ class Binance:
         order_book['asks'] = asks
         return order_book
 
+    def set_order(self, bid, ask):
+        buy_price = (1 - self.volatility) * bid * (1 - self.maker_commission)
+        # buy_price = bid * (1 - self.maker_commission)
+        # self.buy_price = round(buy_price - 2, 2)
+        self.buy_price = round(buy_price , 2)
+        data = {"action": "sentOrder", "side": "buy", "price": self.buy_price, "deposit": self.deposit}
+        self.log(data)
+        sell_price = (1 + self.volatility) * ask * (1 + self.maker_commission)
+        # sell_price = ask * (1 + self.maker_commission)
+        # self.sell_price = round(sell_price + 2, 2)
+        self.sell_price = round(sell_price , 2)
+        data = {"action": "sentOrder", "side": "sell", "price": self.sell_price, "deposit": self.deposit}
+        self.log(data)
+        print("ask: {}, sell order price: {}, bid: {}, buy order price: {}".format(ask, self.sell_price, bid,
+                                                                                   self.buy_price))
+
+
     def stream(self):
 
         def on_message(ws, msg):
-            print(msg)
+            #print(msg)
             data1 = json.loads(msg)
             if 'e' in data1:
                 if data1['e'] == 'depthUpdate':
@@ -53,7 +75,7 @@ class Binance:
                         self.u = data1['u']
 
                     elif data1['U'] == self.u + 1:
-                        print("new event")
+                        # print("new event")
                         self.update_order_book(data1)
                         self.u = data1['u']
                     else:
@@ -62,7 +84,7 @@ class Binance:
 
         def on_open(ws):
             self.order_book = self.get_snapshot()
-            print("connection opend")
+            print("connection opened")
             subscribe = {
                 "method": "SUBSCRIBE",
                 "params":
@@ -75,16 +97,12 @@ class Binance:
             ws.send(json.dumps(subscribe))
             # make buy price
             bid = self.order_book['bids'][0][0]
-            buy_price = .99 * bid * (1 - self.maker_commission)
-            self.buy_price = round(buy_price, 2)
             # make sell price
-            ask = self.order_book['asks'][0][[0]]
-            sell_price = 1.01 * ask * (1 + self.maker_commission)
-            self.sell_price = round(sell_price, 2)
-
+            ask = self.order_book['asks'][0][0]
+            self.set_order(bid, ask)
 
         def on_close(ws):
-            print("connecton closed")
+            print("connection closed")
 
         def on_error(ws, err):
             print(err)
@@ -116,7 +134,7 @@ class Binance:
                 del bids[price]
         updated_prices = sorted(bids, reverse=True)
         self.order_book['bids'] = [[price, bids[price]] for price in updated_prices]
-        print(self.order_book['bids'][0])
+        # print(self.order_book['bids'][0])
 
         # asks
         asks = {}
@@ -130,9 +148,34 @@ class Binance:
                 del asks[price]
             updated_prices = sorted(asks)
             self.order_book['asks'] = [[price, asks[price]] for price in updated_prices]
-            print("bids: ", self.order_book['bids'][0][0], "asks: ", self.order_book['asks'][0][0])
+            bid = self.order_book['bids'][0][0]
+            ask = self.order_book['asks'][0][0]
+            print("bids: ", bid, "asks: ", ask)
+            self.chek_order(bid, ask)
 
 
+    def chek_order(self, bid, ask):
+        if bid < self.buy_price:
+
+            net_buy_price = self.buy_price * (1 + self.maker_commission)
+            self.deposit -= net_buy_price
+            self.set_order(bid=net_buy_price, ask=net_buy_price)
+            print("buy order do at : ", self.buy_price, "deposit: ", self.deposit)
+            data = {"bid": bid, "ask": ask, "action": "buy", "deposit": self.deposit, "net_trade": net_buy_price}
+            self.log(data)
+        elif ask > self.sell_price:
+
+            net_sell_price = self.sell_price * (1 - self.maker_commission)
+            self.deposit += net_sell_price
+            self.set_order(bid=net_sell_price, ask=net_sell_price)
+            print("sell order do at: ", self.sell_price, "deposit: ", self.deposit)
+            data = {"bid": bid, "ask": ask, "action": "sell", "deposit": self.deposit, "net_trade": net_sell_price}
+            self.log(data)
+    def log(self, data):
+        data["time"] = str(datetime.now())
+        with open("log.txt", "a") as f:
+            f.write(json.dumps(data)+"\n")
+        print("logged")
 
 
 
