@@ -44,16 +44,20 @@ class Binance:
         return order_book
 
     def set_order(self, bid, ask):
-        buy_price = (1 - self.volatility) * bid * (1 - self.maker_commission)
-        # buy_price = bid * (1 - self.maker_commission)
-        # self.buy_price = round(buy_price - 2, 2)
-        self.buy_price = round(buy_price , 2)
+        # buy_price = (1 - self.volatility) * bid * (1 - self.maker_commission)
+        # self.buy_price = round(buy_price, 2)
+
+        buy_price = bid * (1 - self.maker_commission)
+        self.buy_price = round(buy_price - 2, 2)
+
         data = {"action": "sentOrder", "side": "buy", "price": self.buy_price, "deposit": self.deposit}
         self.log(data)
-        sell_price = (1 + self.volatility) * ask * (1 + self.maker_commission)
-        # sell_price = ask * (1 + self.maker_commission)
-        # self.sell_price = round(sell_price + 2, 2)
-        self.sell_price = round(sell_price , 2)
+        # sell_price = (1 + self.volatility) * ask * (1 + self.maker_commission)
+        # self.sell_price = round(sell_price, 2)
+
+        sell_price = ask * (1 + self.maker_commission)
+        self.sell_price = round(sell_price + 2, 2)
+
         data = {"action": "sentOrder", "side": "sell", "price": self.sell_price, "deposit": self.deposit}
         self.log(data)
         print("ask: {}, sell order price: {}, bid: {}, buy order price: {}".format(ask, self.sell_price, bid,
