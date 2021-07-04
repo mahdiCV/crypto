@@ -3,6 +3,7 @@ import json
 import requests
 import threading
 from datetime import datetime
+import simulator
 
 
 class Binance:
@@ -103,6 +104,7 @@ class Binance:
             bid = self.order_book['bids'][0][0]
             # make sell price
             ask = self.order_book['asks'][0][0]
+            simulator.setup(bid, ask, maker_commission=self.maker_commission)
             self.set_order(bid, ask)
 
         def on_close(ws):
@@ -140,6 +142,7 @@ class Binance:
         self.order_book['bids'] = [[price, bids[price]] for price in updated_prices]
         # print(self.order_book['bids'][0])
 
+
         # asks
         asks = {}
         for ask in self.order_book['asks']:
@@ -156,6 +159,7 @@ class Binance:
             ask = self.order_book['asks'][0][0]
             print("bids: ", bid, "asks: ", ask)
             self.chek_order(bid, ask)
+            simulator.check_orders(bid=bid, ask=ask, maker_commition=self.maker_commission)
 
 
     def chek_order(self, bid, ask):
